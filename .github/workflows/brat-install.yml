@@ -19,14 +19,18 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/profile" "$RUNNER_TEMP/BRAT Sandbox/.obsidian/plugins/obsidian42-brat"
           cd "$RUNNER_TEMP"
-          curl --retry 3 -fsSL https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.0/obsidian_1.15.0_amd64.deb -o obsidian.deb
+          curl --retry 3 -fsSL https://api.github.com/repos/obsidianmd/obsidian-releases/releases/tags/v1.15.0 -o app-release.json
+          deb=$(jq -r '.assets[]|select(.name=="obsidian_1.15.0_amd64.deb")|.url' app-release.json)
+          curl --retry 3 -fsSL -H 'Accept: application/octet-stream' "$deb?download=$GITHUB_RUN_ID" -o obsidian.deb
+          hash=$(jq -r '.assets[]|select(.name=="obsidian_1.15.0_amd64.deb")|.digest' app-release.json)
+          echo "${hash#sha256:}  obsidian.deb" | sha256sum -c -
           dpkg-deb -x obsidian.deb app
           curl --retry 3 -fsSL https://api.github.com/repos/TfTHacker/obsidian42-brat/releases/tags/2.2.0 -o brat.json
           for file in manifest.json main.js styles.css; do
-            url=$(jq -r --arg f "$file" '.assets[]|select(.name==$f)|.browser_download_url' brat.json)
+            url=$(jq -r --arg f "$file" '.assets[]|select(.name==$f)|.url' brat.json)
             digest=$(jq -r --arg f "$file" '.assets[]|select(.name==$f)|.digest' brat.json)
             dest="BRAT Sandbox/.obsidian/plugins/obsidian42-brat/$file"
-            curl --retry 3 -fsSL "$url" -o "$dest"
+            curl --retry 3 -fsSL -H "Accept: application/octet-stream" "$url?download=$GITHUB_RUN_ID" -o "$dest"
             echo "${digest#sha256:}  $dest" | sha256sum -c -
           done
           jq -n --arg path "$RUNNER_TEMP/BRAT Sandbox" '{vaults:{sandbox:{path:$path,open:true,ts:1}}}' > profile/obsidian.json
@@ -40,3 +44,4 @@ jobs:
             trap "kill $pid || true" EXIT
             node scripts/verify-brat.mjs
           '
+
