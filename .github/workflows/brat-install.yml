@@ -34,6 +34,22 @@ jobs:
             echo "${digest#sha256:}  $dest" | sha256sum -c -
           done
           jq -n --arg path "$RUNNER_TEMP/BRAT Sandbox" '{vaults:{sandbox:{path:$path,open:true,ts:1}}}' > profile/obsidian.json
+      - name: Wait for the public release downloads used by BRAT
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in {1..12}; do
+            ready=yes
+            for name in manifest.json main.js styles.css; do
+              if ! curl -fsSL --max-time 8 -H "Accept: application/octet-stream" "https://github.com/$GITHUB_REPOSITORY/releases/download/0.1.1/$name" -o "$RUNNER_TEMP/check-$name"; then
+                ready=no
+                break
+              fi
+            done
+            if [[ "$ready" = yes ]]; then exit 0; fi
+            sleep 12
+          done
+          exit 1
       - name: Install from repository using Add plugin
         shell: bash
         run: |
@@ -44,4 +60,5 @@ jobs:
             trap "kill $pid || true" EXIT
             node scripts/verify-brat.mjs
           '
+
 
