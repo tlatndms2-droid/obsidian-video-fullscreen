@@ -122,10 +122,12 @@ try {
         file,
       "utf8",
     );
-    assert.equal(
-      installed.replaceAll("\r\n", "\n"),
-      readFileSync(file, "utf8").replaceAll("\r\n", "\n"),
-    );
+    const expected = readFileSync(file, "utf8");
+    if (file === "manifest.json") {
+      assert.deepEqual(JSON.parse(installed), JSON.parse(expected));
+    } else {
+      assert.equal(installed.replaceAll("\r\n", "\n"), expected.replaceAll("\r\n", "\n"));
+    }
   }
 } finally {
   ws.close();
