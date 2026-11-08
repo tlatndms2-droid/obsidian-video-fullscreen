@@ -14,23 +14,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Prepare clean Obsidian vault with official BRAT
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/profile" "$RUNNER_TEMP/BRAT Sandbox/.obsidian/plugins/obsidian42-brat"
           cd "$RUNNER_TEMP"
-          curl --retry 3 -fsSL https://api.github.com/repos/obsidianmd/obsidian-releases/releases/tags/v1.15.0 -o app-release.json
+          # Only prerequisites use an authenticated API backup. BRAT installs
+          # the plugin itself with its default public download path.
+          prerequisite() {
+            local public_url=$1 api_url=$2 out=$3
+            for attempt in 1 2 3; do
+              curl -fsSL --connect-timeout 8 --max-time 60 "$public_url" -o "$out" && return 0
+              curl -fsSL --connect-timeout 8 --max-time 60 -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/octet-stream' "$api_url?download=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$attempt" -o "$out" && return 0
+              sleep 5
+            done
+            return 1
+          }
+          curl --retry 3 -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/obsidianmd/obsidian-releases/releases/tags/v1.15.0 -o app-release.json
           deb=$(jq -r '.assets[]|select(.name=="obsidian_1.15.0_amd64.deb")|.url' app-release.json)
-          curl --retry 3 -fsSL -H 'Accept: application/octet-stream' "$deb?download=$GITHUB_RUN_ID" -o obsidian.deb
+          prerequisite "https://github.com/obsidianmd/obsidian-releases/releases/download/v1.15.0/obsidian_1.15.0_amd64.deb" "$deb" obsidian.deb
           hash=$(jq -r '.assets[]|select(.name=="obsidian_1.15.0_amd64.deb")|.digest' app-release.json)
           echo "${hash#sha256:}  obsidian.deb" | sha256sum -c -
           dpkg-deb -x obsidian.deb app
-          curl --retry 3 -fsSL https://api.github.com/repos/TfTHacker/obsidian42-brat/releases/tags/2.2.0 -o brat.json
+          curl --retry 3 -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/TfTHacker/obsidian42-brat/releases/tags/2.2.0 -o brat.json
           for file in manifest.json main.js styles.css; do
             url=$(jq -r --arg f "$file" '.assets[]|select(.name==$f)|.url' brat.json)
             digest=$(jq -r --arg f "$file" '.assets[]|select(.name==$f)|.digest' brat.json)
             dest="BRAT Sandbox/.obsidian/plugins/obsidian42-brat/$file"
-            curl --retry 3 -fsSL -H "Accept: application/octet-stream" "$url?download=$GITHUB_RUN_ID" -o "$dest"
+            prerequisite "https://github.com/TfTHacker/obsidian42-brat/releases/download/2.2.0/$file" "$url" "$dest"
             echo "${digest#sha256:}  $dest" | sha256sum -c -
           done
           jq -n --arg path "$RUNNER_TEMP/BRAT Sandbox" '{vaults:{sandbox:{path:$path,open:true,ts:1}}}' > profile/obsidian.json
@@ -60,5 +73,6 @@ jobs:
             trap "kill $pid || true" EXIT
             node scripts/verify-brat.mjs
           '
+
 
 
