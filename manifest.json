@@ -1,0 +1,10 @@
+{
+  "id": "video-fullscreen-helper",
+  "name": "영상 전체화면 도우미",
+  "version": "0.1.1",
+  "minAppVersion": "1.15.0",
+  "description": "웹뷰어와 Canvas 링크의 영상 전체화면을 지원합니다.",
+  "author": "tlatn",
+  "isDesktopOnly": true
+}
+

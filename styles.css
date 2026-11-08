@@ -1,0 +1,28 @@
+.vfh-path {
+  position: fixed !important;
+  inset: 0 !important;
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  overflow: visible !important;
+  contain: none !important;
+  clip-path: none !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+}
+.vfh-path > :not(.vfh-path) {
+  visibility: hidden !important;
+}
+webview.vfh-path {
+  visibility: visible !important;
+  background: black !important;
+}
